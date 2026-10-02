@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: parking-db
+    environment:
+      POSTGRES_USER: parking
+      POSTGRES_PASSWORD: parking
+      POSTGRES_DB: shared_parking
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parking -d shared_parking"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: parking-backend
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: parking
+      DB_PASSWORD: parking
+      DB_NAME: shared_parking
+      JWT_SECRET: shared-parking-dev-secret
+      PORT: 3000
+      # 启动后自动播种演示账号与数据（重复启动会重置为干净的演示数据）
+      SEED_ON_BOOT: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build: ./frontend
+    container_name: parking-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
